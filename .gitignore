@@ -16,5 +16,12 @@ runs
 log
 
 *.jpg
-*.json
+# *.json
 data/outcome
+
+# Mac OS
+.DS_Store
+
+# Video
+*.avi
+*.mp4
