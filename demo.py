@@ -20,7 +20,7 @@ from tool.darknet2pytorch import Darknet
 import argparse
 
 """hyper parameters"""
-use_cuda = True
+use_cuda = False
 
 def detect_cv2(cfgfile, weightfile, imgfile):
     import cv2
@@ -56,7 +56,7 @@ def detect_cv2(cfgfile, weightfile, imgfile):
     plot_boxes_cv2(img, boxes[0], savename='predictions.jpg', class_names=class_names)
 
 
-def detect_cv2_camera(cfgfile, weightfile):
+def detect_cv2_camera(cfgfile, weightfile, videofile):
     import cv2
     m = Darknet(cfgfile)
 
@@ -67,10 +67,10 @@ def detect_cv2_camera(cfgfile, weightfile):
     if use_cuda:
         m.cuda()
 
-    cap = cv2.VideoCapture(0)
-    # cap = cv2.VideoCapture("./test.mp4")
-    cap.set(3, 1280)
-    cap.set(4, 720)
+    # cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(videofile)
+    # cap.set(3, 1280)
+    # cap.set(4, 720)
     print("Starting the YOLO loop...")
 
     num_classes = m.num_classes
@@ -82,20 +82,27 @@ def detect_cv2_camera(cfgfile, weightfile):
         namesfile = 'data/x.names'
     class_names = load_class_names(namesfile)
 
+    frame = 0
+    conf_thresh = 0.2
     while True:
         ret, img = cap.read()
-        sized = cv2.resize(img, (m.width, m.height))
-        sized = cv2.cvtColor(sized, cv2.COLOR_BGR2RGB)
+        if not ret:
+            break
 
-        start = time.time()
-        boxes = do_detect(m, sized, 0.4, 0.6, use_cuda)
-        finish = time.time()
-        print('Predicted in %f seconds.' % (finish - start))
+        if frame % 5 == 0:
+            sized = cv2.resize(img, (m.width, m.height))
+            sized = cv2.cvtColor(sized, cv2.COLOR_BGR2RGB)
 
-        result_img = plot_boxes_cv2(img, boxes[0], savename=None, class_names=class_names)
+            start = time.time()
+            boxes = do_detect(m, sized, conf_thresh, 0.6, use_cuda)
+            finish = time.time()
+            print('Predicted in %f seconds.' % (finish - start))
 
-        cv2.imshow('Yolo demo', result_img)
-        cv2.waitKey(1)
+            result_img = plot_boxes_cv2(img, boxes[0], savename=f'unit_test/detect/{frame:010d}.jpg', class_names=class_names)
+        frame+=1
+
+        # cv2.imshow('Yolo demo', result_img)
+        # cv2.waitKey(1)
 
     cap.release()
 
@@ -142,8 +149,11 @@ def get_args():
                         default='./checkpoints/Yolov4_epoch1.pth',
                         help='path of trained model.', dest='weightfile')
     parser.add_argument('-imgfile', type=str,
-                        default='./data/mscoco2017/train2017/190109_180343_00154162.jpg',
+                        # default='./data/mscoco2017/train2017/190109_180343_00154162.jpg',
                         help='path of your image file.', dest='imgfile')
+    parser.add_argument('-videofile', type=str,
+                        # default='./data/mscoco2017/train2017/190109_180343_00154162.jpg',
+                        help='path of your image file.', dest='videofile')
     args = parser.parse_args()
 
     return args
@@ -156,5 +166,5 @@ if __name__ == '__main__':
         # detect_imges(args.cfgfile, args.weightfile)
         # detect_cv2(args.cfgfile, args.weightfile, args.imgfile)
         # detect_skimage(args.cfgfile, args.weightfile, args.imgfile)
-    else:
-        detect_cv2_camera(args.cfgfile, args.weightfile)
+    elif args.videofile:
+        detect_cv2_camera(args.cfgfile, args.weightfile, args.videofile)
