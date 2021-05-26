@@ -82,14 +82,23 @@ def detect_cv2_camera(cfgfile, weightfile, videofile):
         namesfile = 'data/x.names'
     class_names = load_class_names(namesfile)
 
-    frame = 0
     conf_thresh = 0.2
+    detect_fps = 5
+    detect_interval_msec = 1000 / detect_fps
+    next_detect_msec = 0
+
+    # Save original image
+    assert os.path.isdir('/track_data/img')
     while True:
-        ret, img = cap.read()
+        ret = cap.grab()
         if not ret:
             break
 
-        if frame % 5 == 0:
+        video_msec = cap.get(cv2.CAP_PROP_POS_MSEC)
+        if video_msec > next_detect_msec:
+            next_detect_msec += detect_interval_msec
+
+            ret, img = cap.retrieve()
             sized = cv2.resize(img, (m.width, m.height))
             sized = cv2.cvtColor(sized, cv2.COLOR_BGR2RGB)
 
@@ -98,11 +107,11 @@ def detect_cv2_camera(cfgfile, weightfile, videofile):
             finish = time.time()
             print('Predicted in %f seconds.' % (finish - start))
 
-            result_img = plot_boxes_cv2(img, boxes[0], savename=f'unit_test/detect/{frame:010d}.jpg', class_names=class_names)
-        frame+=1
 
-        # cv2.imshow('Yolo demo', result_img)
-        # cv2.waitKey(1)
+            cv2.imwrite(f'/track_data/img/{video_msec:010.2f}.jpg', img)
+
+            # Save detection result image
+            plot_boxes_cv2(img, boxes[0], savename=f'/track_data/detect/{video_msec:010.2f}', class_names=class_names)
 
     cap.release()
 
