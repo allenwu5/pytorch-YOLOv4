@@ -96,7 +96,7 @@ def nms_cpu(boxes, confs, nms_thresh=0.5, min_mode=False):
 
 
 
-def plot_boxes_cv2(img, boxes, savename=None, class_names=None, color=None):
+def plot_boxes_cv2(img, boxes, savename, class_names=None, color=None):
     import cv2
     img = np.copy(img)
     colors = np.array([[1, 0, 1], [0, 0, 1], [0, 1, 1], [0, 1, 0], [1, 1, 0], [1, 0, 0]], dtype=np.float32)
@@ -111,33 +111,41 @@ def plot_boxes_cv2(img, boxes, savename=None, class_names=None, color=None):
 
     width = img.shape[1]
     height = img.shape[0]
-    for i in range(len(boxes)):
-        box = boxes[i]
-        x1 = int(box[0] * width)
-        y1 = int(box[1] * height)
-        x2 = int(box[2] * width)
-        y2 = int(box[3] * height)
 
-        if color:
-            rgb = color
-        else:
-            rgb = (255, 0, 0)
-        if len(box) >= 7 and class_names:
-            cls_conf = box[5]
-            cls_id = box[6]
-            print('%s: %f' % (class_names[cls_id], cls_conf))
-            classes = len(class_names)
-            offset = cls_id * 123457 % classes
-            red = get_color(2, offset, classes)
-            green = get_color(1, offset, classes)
-            blue = get_color(0, offset, classes)
-            if color is None:
-                rgb = (red, green, blue)
-            img = cv2.putText(img, class_names[cls_id], (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 1.2, rgb, 1)
-        img = cv2.rectangle(img, (x1, y1), (x2, y2), rgb, 1)
-    if savename:
-        print("save plot results to %s" % savename)
-        cv2.imwrite(savename, img)
+    detect_result_txt = f'{savename}.txt'
+    detect_result_img = f'{savename}.jpg'
+    with open(detect_result_txt, 'w') as f:
+        for i in range(len(boxes)):
+            box = boxes[i]
+            x1 = int(box[0] * width)
+            y1 = int(box[1] * height)
+            x2 = int(box[2] * width)
+            y2 = int(box[3] * height)
+
+            if color:
+                rgb = color
+            else:
+                rgb = (255, 0, 0)
+            if len(box) >= 7 and class_names:
+                cls_conf = box[5]
+                cls_id = box[6]
+                print('%s: %f' % (class_names[cls_id], cls_conf))
+                classes = len(class_names)
+                offset = cls_id * 123457 % classes
+                red = get_color(2, offset, classes)
+                green = get_color(1, offset, classes)
+                blue = get_color(0, offset, classes)
+                if color is None:
+                    rgb = (red, green, blue)
+                img = cv2.putText(img, class_names[cls_id], (x1, y1), cv2.FONT_HERSHEY_SIMPLEX, 1.2, rgb, 1)
+
+                # object_class_index, center_x, center_y, width, height
+                f.write(f' '.join([str(j) for j in [cls_id, (box[0]+box[2])/2, (box[1]+box[3])/2, box[2]-box[0], box[3]-box[1]]]))
+                f.write('\n')
+            img = cv2.rectangle(img, (x1, y1), (x2, y2), rgb, 1)
+    if detect_result_img:
+        print("save plot results to %s" % detect_result_img)
+        cv2.imwrite(detect_result_img, img)
     return img
 
 
@@ -163,7 +171,7 @@ def load_class_names(namesfile):
 
 
 
-def post_processing(img, conf_thresh, nms_thresh, output):
+def post_processing(img, conf_thresh, nms_thresh, output, verbose=False):
 
     # anchors = [12, 16, 19, 36, 40, 28, 36, 75, 76, 55, 72, 146, 142, 110, 192, 243, 459, 401]
     # num_anchors = 9
@@ -224,10 +232,11 @@ def post_processing(img, conf_thresh, nms_thresh, output):
 
     t3 = time.time()
 
-    print('-----------------------------------')
-    print('       max and argmax : %f' % (t2 - t1))
-    print('                  nms : %f' % (t3 - t2))
-    print('Post processing total : %f' % (t3 - t1))
-    print('-----------------------------------')
+    if verbose:
+        print('-----------------------------------')
+        print('       max and argmax : %f' % (t2 - t1))
+        print('                  nms : %f' % (t3 - t2))
+        print('Post processing total : %f' % (t3 - t1))
+        print('-----------------------------------')
     
     return bboxes_batch
